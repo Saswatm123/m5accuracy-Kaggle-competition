@@ -20,13 +20,15 @@ data.prices = read.csv( paste(datadir, 'sell_prices.csv', sep = '') )
 colnames(data.sales)[1:6]
 ```
 
+```
 ID is just concatenated version of other columns, so we can ignore that.
-
+```
 ```{r}
 data.sales %>%
   head(20)
 ```
 
+```
 data.sales:
   id:
     concat version of all other columns
@@ -42,7 +44,7 @@ data.sales:
     CA, TX, WI
   d[1-X]:
     sales on days 1-X
-
+```
 ```{r}
 #SUMMARY: store_id is in the form "STATEABBR_[1-4]", 3049 of each. States are CA TX WI.
 
@@ -52,7 +54,9 @@ data.sales %>%
   table()
 ```
 
+```
 Now will see how each store performs over time
+```
 ```{r}
 perstore.timeline = data.sales %>%
   group_by(store_id) %>%
@@ -82,6 +86,7 @@ ggplot(plot.timeline.perstore, aes(x = daynum, y = n_sales, color = store_id) ) 
   facet_grid(~store_id)
 ```
 
+```
 This could be combined with weather data or other time data if we find the exact dates this was collected on. 
 
 Each store has a unique pattern to it so store_id is a major feature.
@@ -91,7 +96,7 @@ Edit: The closing date is Christmas each year.
 Edit: All dates are provided in data.calendar along with their d_X equivalent
 
 This also means that no days were skipped recording, and these are consecutive dates.
-
+```
 ```{r}
 #Looking at how many zero sale dates there are in all locations
 print(lapply(perstore.timeline.T, function(x){ sum(x==0) } ) )
@@ -115,24 +120,29 @@ print( which(perstore.timeline.T$WI_1 <= LOW_SALES_THRESH) )
 #When we get to the specific dates, we can find out what the 5th day is and go from there.
 ```
 
+```
 Now we look at price data over the specific dates.
+```
 ```{r}
 data.prices %>%
   head(20)
+``` 
+
 ```
-
 Since the info here is time based as well, I'll look at the calendar file to see any more interesting time data and add/remove features accordingly.
-
+```
 ```{r}
 data.calendar %>%
   head(20)
 ```
 
+```
 data.sales: number of each item sold on each day along with location info (units per location/item/day)
 data.prices:  price of each item sold on each day along with location info (price per location/item/day)
 data.calendar:  specific dates along with corresponding day info
 
 Lets look at the time info provided by data.calendar
+```
 ```{r}
 data.calendar = data.calendar %>%
   mutate(date = ymd(date),
@@ -154,6 +164,10 @@ volume.details = prices.as.calendar %>%
   filter(! (units %>% is.na) ) #This filter is for the store/item combinations that don't exist, which will return NA for sales.
 ```
 
+```
+volume.details is master data frame of volume, units, price vs all signal level combinations (time, state, etc.)
+all sub-level data frames only need [date, signal_level, price, units, volume] + [additional features (SNAP, days till holiday etc)]
+```
 ```{r}
 colnames(volume.details)
 ```
@@ -164,8 +178,10 @@ volume.details = volume.details %>%
   mutate(volume = units * sell_price)
 ```
 
+```
 Volume, units, sell price vs date.
 Gray is volume, Red is units, Blue is sell price
+```
 ```{r}
 volume.details %>%
   group_by(date) %>%
@@ -189,3 +205,25 @@ volume.details = volume.details %>%
   select(is.weekend, everything() ) #Moves the lsat column to the front.
 ```
 
+```{r}
+volume.details %>%
+  group_by(date) %>%
+  summarize(units = sum(units), price = sum(sell_price), volume = sum(units*sell_price) ) %>%
+  ggplot(aes(x = date) ) +
+    geom_path(aes(y = price ) )
+
+#This is a useful dataframe, so I'll save it for later.
+vol.by.date = volume.details %>%
+  group_by(date) %>%
+  summarize(units = sum(units), price = sum(sell_price), volume = sum(units*sell_price) )
+```
+
+```
+Feature Aggregation levels:
+  State -> Store ID
+  Category ID -> Department ID -> Item ID
+
+Target Aggregation Levels:
+  Volume
+  Price * Units
+```
