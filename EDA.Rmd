@@ -227,3 +227,59 @@ Target Aggregation Levels:
   Volume
   Price * Units
 ```
+```{r}
+vol.by.date %>%
+  ggplot(aes(x = date) ) +
+    geom_path(aes(y = price) ) +
+    geom_smooth(aes(y = price), method = 'lm')
+#Price has large first order drift (slope), so we difference it twice to get rid of it. 
+#Differencing once keeps all the values as positive, twice centers it at zero.
+
+vol.by.date %>%
+  ggplot(aes(x = date) ) +
+    geom_path(aes(y = c(0,0, price %>% diff %>% diff) ) )
+#Now the mean is stationary but the variance is not. I will look at some stats about the double diff of price.
+
+price.dd = vol.by.date$price %>% diff %>% diff
+
+```
+
+```{r}
+undiff = function(x, order, base){
+  #x is the diff vector
+  #order is how many times the base was diffed to get x
+  #base is the undiffed vector to use for bringing down x's order
+  diff.levels = list()
+  for (n in 1:(order-1) ){
+    if(n == 1){
+      diff.levels[[n]] = base[ (length(base)-order+1):length(base) ] %>% diff
+    }
+    else{
+      diff.levels[[n]] = diff.levels[[n-1]] %>% diff
+    }
+  }
+  diff.levels[[order]] = x
+  
+  forecasted.zero.diff = c(0)
+  while(length(diff.levels[[order]]) != 0){
+    for(level in seq(order - 1, 1, -1) ){
+      diff.levels[[level]] = c(diff.levels[[level]], 
+                               diff.levels[[level]][length(diff.levels[[level]]) ] + diff.levels[[level + 1]][length(diff.levels[[level + 1]]) ] )
+    }
+    forecasted.zero.diff = c(forecasted.zero.diff, forecasted.zero.diff[ length(forecasted.zero.diff) ] + diff.levels[[1]][length(diff.levels[[1]]) ])
+    diff.levels[[order]] = diff.levels[[order]][-1]
+  }
+  forecasted.zero.diff
+}
+
+diff.levels = undiff(price.dd, order = 2, base = vol.by.date$price[1:2])
+```
+
+
+```{r}
+response = arima.sim(model = list(ma = 1), n = 200)
+
+plot(response)
+
+```
+
