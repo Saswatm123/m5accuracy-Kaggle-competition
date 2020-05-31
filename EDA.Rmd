@@ -245,10 +245,15 @@ price.dd = vol.by.date$price %>% diff %>% diff
 ```
 
 ```{r}
-undiff = function(x, order, base){
-  #x is the diff vector
+undiff = function(difference, order, base){
+  #difference is the diff vector
   #order is how many times the base was diffed to get x
   #base is the undiffed vector to use for bringing down x's order
+  
+  if( !(length(base) >= order) ){
+    stop( paste0("Base needs at least ", order, " elements for an order of ", order, ". Right now it has ", length(base) ) )
+  }
+  
   diff.levels = list()
   for (n in 1:(order-1) ){
     if(n == 1){
@@ -258,28 +263,36 @@ undiff = function(x, order, base){
       diff.levels[[n]] = diff.levels[[n-1]] %>% diff
     }
   }
-  diff.levels[[order]] = x
+  diff.levels[[order]] = difference
   
-  forecasted.zero.diff = c(0)
-  while(length(diff.levels[[order]]) != 0){
-    for(level in seq(order - 1, 1, -1) ){
-      diff.levels[[level]] = c(diff.levels[[level]], 
-                               diff.levels[[level]][length(diff.levels[[level]]) ] + diff.levels[[level + 1]][length(diff.levels[[level + 1]]) ] )
+  forecasted.zero.diff = c(base[length(base)] )
+  
+  for(diff.elem in 1:length(diff.levels[[order]]) ){
+    
+    for(level in seq(order-1, 1, -1) ){
+      #For each level, append to the end the sum of the last value in that level and the last value from one level up.
+      #If it's the second to topmost level, use the element counter since there are many values in the topmost level (where level == order)
+      if(level != order - 1){
+        diff.levels[[level]] = c(diff.levels[[level]], 
+                                 diff.levels[[level]][length(diff.levels[[level]]) ] + diff.levels[[level + 1]][length(diff.levels[[level + 1]]) ] )
+      }
+      else{
+        diff.levels[[level]] = c(diff.levels[[level]],
+                                 diff.levels[[level]][length(diff.levels[[level]]) ] + difference[diff.elem] )
+      }
     }
     forecasted.zero.diff = c(forecasted.zero.diff, forecasted.zero.diff[ length(forecasted.zero.diff) ] + diff.levels[[1]][length(diff.levels[[1]]) ])
     diff.levels[[order]] = diff.levels[[order]][-1]
   }
-  forecasted.zero.diff
+  
+  forecasted.zero.diff[2:length(forecasted.zero.diff) ]
 }
 
-diff.levels = undiff(price.dd, order = 2, base = vol.by.date$price[1:2])
 ```
-
 
 ```{r}
 response = arima.sim(model = list(ma = 1), n = 200)
 
 plot(response)
-
 ```
 
