@@ -1,0 +1,31 @@
+---
+title: "Modeling"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(forecast)
+library(xgboost)
+library(statmod)
+```
+
+```{r}
+volume.details %>%
+  select(date, item_id, cat_id, sell_price) %>%
+  filter(cat_id == "HOBBIES") %>%
+  filter(str_detect(item_id, "HOBBIES_1_00[0-9]") ) %>%
+  ggplot() +
+    geom_density(aes(x = sell_price, color = item_id) ) +
+    facet_wrap(~item_id)
+
+volume.details %>%
+  select(date, item_id, cat_id, sell_price) %>%
+  filter(cat_id == "HOBBIES") %>%
+  filter(str_detect(item_id, "HOBBIES_1_00[0-9]") ) %>%
+  ggplot() +
+    geom_point(aes(x = date, y = sell_price, color = item_id) ) +
+    facet_wrap(~item_id)
+```

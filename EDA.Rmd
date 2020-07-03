@@ -11,7 +11,7 @@ library(forecast)
 ```
 
 ```{r}
-datadir = '../datasets/m5accuracy/'
+datadir = '../../datasets/m5accuracy/'
 data.sales = read.csv( paste(datadir, 'sales_train_validation.csv', sep = '') )
 data.calendar = read.csv( paste(datadir, 'calendar.csv', sep = '') )
 data.prices = read.csv( paste(datadir, 'sell_prices.csv', sep = '') )
@@ -20,13 +20,6 @@ data.prices = read.csv( paste(datadir, 'sell_prices.csv', sep = '') )
 ```{r}
 colnames(data.sales)[1:6]
 ```
-
-```{r}
-
-
-
-```
-
 
 ```
 ID is just concatenated version of other columns, so we can ignore that.
@@ -235,7 +228,7 @@ Target Aggregation Levels:
   Volume
   Price * Units
   
-Total #TS possible = 3 * (3*4 - 1) = 33
+Total #TS possible = 3 * (3*4) = 36
 ```
 ```{r}
 vol.by.date %>%
@@ -253,3 +246,45 @@ vol.by.date %>%
 price.dd = vol.by.date$price %>% diff %>% diff
 
 ```
+
+```
+First axis level choice is State -> Store_ID
+To see if Store_ID is relevant, we can look at group distributions per store ID, setting cat_id as second axis choice
+```
+```{r}
+#Price, Units sold per store ID with category = cat_id
+volume.details %>%
+  group_by(date, store_id, cat_id) %>% 
+  summarize(volume = sum(volume) ) %>%
+  ggplot() +
+    geom_point(aes(x = date, y = volume, color = cat_id) ) +
+    facet_wrap(~store_id+cat_id)
+
+#Now we go one step down on the hierarchy, we check some samples of the item_id series. 
+#We check the first 9 item_ids of HOBBIES.
+volume.details %>%
+  select(date, item_id, cat_id, volume) %>%
+  filter(cat_id == "HOBBIES") %>%
+  filter(str_detect(item_id, "HOBBIES_1_00[0-9]") ) %>%
+  ggplot() +
+    geom_point(aes(x = date, y = volume, color = item_id) ) +
+    facet_wrap(~item_id)
+
+#From here we find that there are a lot of item_ids that are added in during the middle of the period, and start with
+#2 years of zeros. To fix this, we should not include date/sale intersections of item_ids that are before the first nonzero
+```
+
+```{r}
+#We can look at the distributions of the sales at the item level. This will help us find likelihoods later on and will give us
+#insight into what modeling tools to use.
+volume.details %>%
+  select(date, item_id, cat_id, volume) %>%
+  filter(cat_id == "HOBBIES") %>%
+  filter(str_detect(item_id, "HOBBIES_1_00[0-9]") ) %>%
+  ggplot() +
+    geom_density(aes(x = volume, color = item_id) ) +
+    facet_wrap(~item_id)
+
+#We have peaks at zero with peaks following it but decreasing in height. Looks possibly inverse exponential or Tweedie.
+```
+
